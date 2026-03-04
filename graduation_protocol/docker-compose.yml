@@ -1,0 +1,82 @@
+services:
+  # --- GRADUATION VAULT (Database) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: graduation_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-graduation_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-graduation_password}
+      POSTGRES_DB: ${POSTGRES_DB:-graduation_db}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+    networks:
+      - graduation_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-graduation_user} -d ${POSTGRES_DB:-graduation_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: graduation_adminer
+    restart: always
+    ports:
+      - "8083:8080"
+    networks:
+      - graduation_net
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  # --- GRADUATION NERVOUS SYSTEM (Signals) ---
+  redis:
+    image: redis:7-alpine
+    container_name: graduation_redis
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - graduation_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scout:
+    build:
+      context: ./graduation_scout
+      dockerfile: Dockerfile
+    container_name: graduation_scout
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - graduation_net
+
+  sniper:
+    build:
+      context: ./graduation_sniper
+      dockerfile: Dockerfile
+    container_name: graduation_sniper
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - graduation_net
+
+networks:
+  graduation_net:
+    driver: bridge

@@ -1,0 +1,72 @@
+services:
+  early_db:
+    image: postgres:16-alpine
+    container_name: early_db
+    environment:
+      POSTGRES_USER: early_user
+      POSTGRES_PASSWORD: early_password
+      POSTGRES_DB: early_db
+    ports:
+      - "5438:5432"
+    volumes:
+      - ./early_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - early_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U early_user -d early_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  early_redis:
+    image: redis:7-alpine
+    container_name: early_redis
+    ports:
+      - "6384:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  early_scout:
+    build:
+      context: ./early_scout
+    container_name: early_scout
+    depends_on:
+      early_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://early_redis:6379
+    restart: always
+
+  early_watcher:
+    build:
+      context: ./early_watcher
+    container_name: early_watcher
+    depends_on:
+      early_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://early_redis:6379
+    restart: always
+
+  early_sniper:
+    build:
+      context: ./early_sniper
+    container_name: early_sniper
+    depends_on:
+      early_db:
+        condition: service_healthy
+      early_redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: early_db
+      POSTGRES_USER: early_user
+      POSTGRES_PASSWORD: early_password
+      POSTGRES_DB: early_db
+      REDIS_URL: redis://early_redis:6379
+      SHYFT_API_KEYS: ${SHYFT_API_KEYS}
+    restart: always
+
+volumes:
+  early_db_data:

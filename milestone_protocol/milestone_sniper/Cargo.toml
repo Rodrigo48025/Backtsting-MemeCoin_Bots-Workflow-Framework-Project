@@ -1,0 +1,40 @@
+[package]
+name = "milestone_sniper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Async Runtime
+tokio = { version = "1.36", features = ["full"] }
+futures-util = "0.3"
+
+# Solana (The constraint source)
+solana-client = "1.18"
+solana-sdk = "1.18"
+solana-transaction-status = "1.18"
+bs58 = "0.5" 
+bincode = "1.3.3" 
+base64 = "0.21"
+
+# Networking
+# We use native-tls to play nice with the system
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+url = "2.5"
+reqwest = { version = "0.11", default-features = false, features = ["json", "native-tls"] }
+
+# Database - THE REPLACEMENT
+# tokio-postgres does not pull in the conflicting crypto libraries
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"] }
+deadpool-postgres = "0.12" 
+postgres-types = { version = "0.2", features = ["derive"] }
+
+# Data handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+redis = { version = "0.24", features = ["tokio-comp"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+dotenv = "0.15"

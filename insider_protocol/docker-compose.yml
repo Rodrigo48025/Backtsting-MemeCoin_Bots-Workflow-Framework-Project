@@ -1,0 +1,73 @@
+services:
+  insider_db:
+    image: postgres:16-alpine
+    container_name: insider_db
+    environment:
+      POSTGRES_USER: insider_user
+      POSTGRES_PASSWORD: insider_password
+      POSTGRES_DB: insider_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - insider_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U insider_user -d insider_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  insider_redis:
+    image: redis:7-alpine
+    container_name: insider_redis
+    ports:
+      - "6382:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  insider_scout:
+    build:
+      context: ./insider_scout
+    container_name: insider_scout
+    depends_on:
+      insider_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://insider_redis:6379
+      HELIUS_RPC_URL: ${HELIUS_RPC_URL}
+    restart: always
+
+  insider_watcher:
+    build:
+      context: ./insider_watcher
+    container_name: insider_watcher
+    depends_on:
+      insider_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://insider_redis:6379
+    restart: always
+
+  insider_sniper:
+    build:
+      context: ./insider_sniper
+    container_name: insider_sniper
+    depends_on:
+      insider_db:
+        condition: service_healthy
+      insider_redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: insider_db
+      POSTGRES_USER: insider_user
+      POSTGRES_PASSWORD: insider_password
+      POSTGRES_DB: insider_db
+      REDIS_URL: redis://insider_redis:6379
+      SHYFT_API_KEYS: ${SHYFT_API_KEYS}
+    restart: always
+
+volumes:
+  insider_db_data:

@@ -1,0 +1,44 @@
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+build/
+dist/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# System
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Specific
+.antigravity/
+brain/
+*.log
+**/data/
+**/*.rdb
+**/*.sqlite
+**/postgres/
+**/redis/

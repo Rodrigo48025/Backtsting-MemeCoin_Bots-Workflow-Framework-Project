@@ -1,0 +1,17 @@
+[package]
+name = "early_sniper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+redis = { version = "0.23", features = ["tokio-comp"] }
+tokio-postgres = "0.7"
+deadpool-postgres = "0.10"
+dotenv = "0.15"
+chrono = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
+futures-util = "0.3"
+env_logger = "0.10"

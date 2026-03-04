@@ -1,0 +1,125 @@
+services:
+  # --- THE VAULT (Database) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: ghost_db
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ghost_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ghost_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ghost_db}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - ghost_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ghost_user} -d ${POSTGRES_DB:-ghost_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: ghost_adminer
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "8082:8080"
+    networks:
+      - ghost_net
+    environment:
+      ADMINER_DEFAULT_SERVER: ghost_db
+
+  # --- THE NERVOUS SYSTEM (Signals) ---
+  redis:
+    image: redis:7-alpine
+    container_name: ghost_redis
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - ghost_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scout:
+    build: 
+      context: ./ghost_scout
+      dockerfile: Dockerfile
+    container_name: ghost_scout
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - ghost_net
+
+  sniper:
+    build: 
+      context: ./ghost_sniper
+      dockerfile: Dockerfile
+    container_name: ghost_sniper
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - ghost_net
+
+  evaluator:
+    build: 
+      context: ./ghost_evaluator
+      dockerfile: Dockerfile
+    container_name: ghost_evaluator
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - ghost_net
+
+networks:
+  ghost_net:
+    driver: bridge

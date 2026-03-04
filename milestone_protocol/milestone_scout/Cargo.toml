@@ -1,0 +1,33 @@
+[package]
+name = "milestone_scout"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Async Runtime
+tokio = { version = "1.36", features = ["full"] }
+
+# Networking (HTTP & WSS)
+reqwest = { version = "0.11", features = ["json", "native-tls"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+url = "2.5"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Databases
+redis = { version = "0.24", features = ["tokio-comp"] }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"] }
+deadpool-postgres = "0.12" 
+postgres-types = { version = "0.2", features = ["derive"] }
+
+# Utilities
+dotenv = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"
+env_logger = "0.11"
+anyhow = "1.0" # Error handling made easy
+rand = "0.8"   # For randomizing start index of keys
+solana-program = "1.18"

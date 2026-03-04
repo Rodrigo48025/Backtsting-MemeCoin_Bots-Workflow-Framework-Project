@@ -1,0 +1,71 @@
+services:
+  volume_db:
+    image: postgres:16-alpine
+    container_name: volume_db
+    environment:
+      POSTGRES_USER: volume_user
+      POSTGRES_PASSWORD: volume_password
+      POSTGRES_DB: volume_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - volume_db_data_v2:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U volume_user -d volume_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  volume_redis:
+    image: redis:7-alpine
+    container_name: volume_redis
+    ports:
+      - "6383:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  volume_scout:
+    build:
+      context: ./volume_scout
+    container_name: volume_scout
+    depends_on:
+      volume_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://volume_redis:6379
+    restart: always
+
+  volume_watcher:
+    build:
+      context: ./volume_watcher
+    container_name: volume_watcher
+    depends_on:
+      volume_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://volume_redis:6379
+    restart: always
+
+  volume_sniper:
+    build:
+      context: ./volume_sniper
+    container_name: volume_sniper
+    depends_on:
+      volume_db:
+        condition: service_healthy
+      volume_redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: volume_db
+      POSTGRES_USER: volume_user
+      POSTGRES_PASSWORD: volume_password
+      POSTGRES_DB: volume_db
+      REDIS_URL: redis://volume_redis:6379
+      SHYFT_API_KEYS: ${SHYFT_API_KEYS}
+    restart: always
+
+volumes:
+  volume_db_data_v2:

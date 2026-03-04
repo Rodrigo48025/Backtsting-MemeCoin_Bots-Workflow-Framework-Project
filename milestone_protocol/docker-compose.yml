@@ -1,0 +1,82 @@
+services:
+  # --- MILESTONE VAULT (Database) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: milestone_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-milestone_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-milestone_password}
+      POSTGRES_DB: ${POSTGRES_DB:-milestone_db}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5439:5432"
+    networks:
+      - milestone_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-milestone_user} -d ${POSTGRES_DB:-milestone_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: milestone_adminer
+    restart: always
+    ports:
+      - "8084:8080"
+    networks:
+      - milestone_net
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  # --- MILESTONE NERVOUS SYSTEM (Signals) ---
+  redis:
+    image: redis:7-alpine
+    container_name: milestone_redis
+    restart: always
+    ports:
+      - "6385:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - milestone_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scout:
+    build:
+      context: ./milestone_scout
+      dockerfile: Dockerfile
+    container_name: milestone_scout
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - milestone_net
+
+  sniper:
+    build:
+      context: ./milestone_sniper
+      dockerfile: Dockerfile
+    container_name: milestone_sniper
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - milestone_net
+
+networks:
+  milestone_net:
+    driver: bridge

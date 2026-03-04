@@ -1,0 +1,72 @@
+services:
+  copy_trade_db:
+    image: postgres:16-alpine
+    container_name: copy_trade_db
+    environment:
+      POSTGRES_USER: copy_trade_user
+      POSTGRES_PASSWORD: copy_trade_password
+      POSTGRES_DB: copy_trade_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - copy_trade_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U copy_trade_user -d copy_trade_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  copy_trade_redis:
+    image: redis:7-alpine
+    container_name: copy_trade_redis
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  copy_trade_scout:
+    build:
+      context: ./copy_trade_scout
+    container_name: copy_trade_scout
+    env_file: .env
+    depends_on:
+      copy_trade_db:
+        condition: service_healthy
+      copy_trade_redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://copy_trade_redis:6379
+      POSTGRES_HOST: copy_trade_db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: copy_trade_user
+      POSTGRES_PASSWORD: copy_trade_password
+      POSTGRES_DB: copy_trade_db
+      HELIUS_RPC_URL: ${HELIUS_RPC_URL}
+    restart: always
+
+  copy_trade_sniper:
+    build:
+      context: ./copy_trade_sniper
+    container_name: copy_trade_sniper
+    env_file: .env
+    depends_on:
+      copy_trade_db:
+        condition: service_healthy
+      copy_trade_redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: copy_trade_db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: copy_trade_user
+      POSTGRES_PASSWORD: copy_trade_password
+      POSTGRES_DB: copy_trade_db
+      REDIS_URL: redis://copy_trade_redis:6379
+      SHYFT_API_KEYS: ${SHYFT_API_KEYS}
+    restart: always
+
+volumes:
+  copy_trade_db_data:
